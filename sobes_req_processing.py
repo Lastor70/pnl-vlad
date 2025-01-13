@@ -6,8 +6,9 @@ def process_sobes_data(df, vykup_statuses, df_sobes):
 
     df_3 = df_2.copy()
     df_3['externalId'] = df_3['externalId'].apply(lambda x: '-'.join(x.split('-')[:3]))
-    df_3 = df_3.rename(columns={'purchasePrice': 'sebes'})
+    df_3 = df_3.rename(columns={'purchasePrice': 'Себес (OID) из СРМ'})
     df_3 = df_3.drop_duplicates(subset='externalId')
+    df_3.rename(columns={'externalId': 'offer_id(товара)'}, inplace=True)
 
     mask_delivery = df['Назва товару'].str.contains('оставка', case=False, na=False)
     df_total_in_order = df[~mask_delivery]
