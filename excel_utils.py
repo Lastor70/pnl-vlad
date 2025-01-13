@@ -7,16 +7,28 @@ def save_data_to_excel(catalog_w_leads, car_space_merged, catalog_cash, merged_s
     # sh_catalog = wb1['Catalog']
 
     column_mapping = {
-        'Название оффера': 'B',
-        'offer_id(заказа)': 'C',
-        'Кількість лідів': 'D',
-        'Кількість чистих лідів': 'E',
-        'Кількість аппрувів': 'G',
-        'Средняя сумма в апрувах': 'J',
-        'Лид до $': 'L',
-        'Коэф. Апрува': 'M',
-        'spend': 'N',
-        'leads': 'O',
+        'Назв товару': 'A',
+        'offer_id(заказа)': 'B',
+        'Кількість лідів': 'C',
+        'Кількість чистих лідів': 'D',
+        'Кількість аппрувів': 'F',
+        'Доставляются': 'I',
+        'Возврат': 'K',
+        'Выкуп': 'L',
+        'Refund': 'N',
+        'Продано товаров шт. (OID)': 'P',
+        'Себес (OID) из СРМ': 'R',
+        'Продано товаров всего': 'S',
+        '% заказов с допами в апрувах': 'U',
+        'Выручка по OID без доставки (от этого значения 5% баеру)': 'V',
+        'Выручка по всем товарам без доставки (все товары)_y': 'W',
+        'Итоговая выручка с дост. в СУМ': 'X',
+        'Средний чек апрува без доставки': 'Z',
+        'Коэф. Апрува': 'AA',
+        'Лид до $': 'AB',
+        'spend': 'AC',
+        'Refund SUM': 'AJ',        
+        'Себес товаров': 'AL',                                                                                 
     }
 
     def paste_data(df, mapping, sheet):
@@ -24,9 +36,9 @@ def save_data_to_excel(catalog_w_leads, car_space_merged, catalog_cash, merged_s
             if df_column in df.columns:  # Перевірка на наявність стовпця в DataFrame
                 column_data = df[df_column]
                 for row_idx, value in enumerate(column_data, start=1):
-                    cell = sheet[f"{excel_column}{row_idx+3}"]
+                    cell = sheet[f"{excel_column}{row_idx+6}"]
                     cell.value = value
-                    cell._style = sheet[f"{excel_column}4"]._style
+                    cell._style = sheet[f"{excel_column}7"]._style
 
     map_cash = {
         'offer_id': 'AB',

@@ -55,7 +55,7 @@ if st.button("Выгрузить и обработать данные"):
     
 
     # Обробка замовлень
-    processed_orders,df = process_orders_data(df_orders, combined_df, df_payment, df_appruv_range, df_grouped)
+    processed_orders = process_orders_data(df_orders, combined_df, df_payment, df_appruv_range, df_grouped)
     progress_bar.progress(95)
     
     st.session_state.update({
@@ -64,7 +64,7 @@ if st.button("Выгрузить и обработать данные"):
     #     'df_orders': df_orders,
     #     'df': df
     })
-    st.write(df)
+    st.write(processed_orders)
 
 
     # # Обробка каталогу
@@ -81,16 +81,16 @@ if st.button("Выгрузить и обработать данные"):
 
     # st.write(processed_orders)
 
-    # filename = save_data_to_excel(
-    #     processed_orders, 
-    #     start_date_str, 
-    #     end_date_str
-    # )
+    filename = save_data_to_excel(
+        processed_orders, 
+        start_date_str, 
+        end_date_str
+    )
     
-    # with open(filename, "rb") as f:
-    #     st.download_button(
-    #         "Скачать Excel файл",
-    #         f,
-    #         file_name=filename,
-    #         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    #     )
+    with open(filename, "rb") as f:
+        st.download_button(
+            "Скачать Excel файл",
+            f,
+            file_name=filename,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )

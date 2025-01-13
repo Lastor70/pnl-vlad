@@ -219,8 +219,11 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
     merged_final['Коэф. Апрува'] = pd.to_numeric(merged_final['Коэф. Апрува'], errors='coerce')
 
     merged_final['Лид до $'] = merged_final['Лид до $'] * merged_final['Коэф. Апрува']
+    
+    names = df.dropna(subset=['Назва товару'])
+    names = names[~names['Назва товару'].str.contains('оставка') & names['Match'] == 1]
+    names = names.groupby('offer_id(заказа)').agg({'Назва товару': 'first'})
+    
+    merged_final = merged_final.merge(names, how='left', on='offer_id(заказа)')
 
-    # names = df[~df['Назва товару'].isna() & df['Назва товару'].str.contains('оставка') & (df['Match'] == 1)]
-    # unique_names = names.nunique()
-    # merged_final.to_excel('lal.xlsx')
-    return merged_final,df
+    return merged_final
