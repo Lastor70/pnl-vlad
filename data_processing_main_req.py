@@ -220,6 +220,14 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
 
     merged_final['Лид до $'] = merged_final['Лид до $'] * merged_final['Коэф. Апрува']
     
+    merged_final['Итоговая выручка с дост. в СУМ'] = merged_final['Итоговая выручка с дост. в СУМ'] * 1000
+    merged_final['Refund SUM'] = merged_final['Refund SUM'] * 1000
+    merged_final['Выручка по OID без доставки (от этого значения 5% баеру)'] = merged_final['Выручка по OID без доставки (от этого значения 5% баеру)'] * 1000
+    merged_final['Выручка по всем товарам без доставки (все товары)_y'] = merged_final['Выручка по всем товарам без доставки (все товары)_y'] * 1000
+    merged_final['Refund SUM'] = merged_final['Refund SUM'] * 1000
+
+    
+
     names = df.dropna(subset=['Назва товару'])
     names = names[~names['Назва товару'].str.contains('оставка') & names['Match'] == 1]
     names = names.groupby('offer_id(заказа)').agg({'Назва товару': 'first'})
