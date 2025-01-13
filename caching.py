@@ -10,11 +10,11 @@ from sobes_req_processing import fetch_sobes_data_from_api
 def fetch_tokens_data(spreadsheet_id, sheet_name, creds_dict):
     return fetch_google_sheet_data(spreadsheet_id, sheet_name, creds_dict)
 
-# @st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600)
 def get_sobes_data():
     return fetch_sobes_data_from_api()
 
-@st.cache_data()
+@st.cache_data(ttl=3600)
 def fetch_orders_data(api_key, start_date, end_date, request_type):
     return get_orders(api_key, start_date, end_date, request_type)
 
