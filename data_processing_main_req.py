@@ -220,7 +220,7 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
 
     merged_final['Лид до $'] = merged_final['Лид до $'] * merged_final['Коэф. Апрува']
 
-
-    print(merged_final[['offer_id(заказа)','Кількість аппрувів', 'Кількість лідів','% Аппрува','Средний чек апрува без доставки','Лид до $','Коэф. Апрува']])
+    # names = df[~df['Назва товару'].isna() & df['Назва товару'].str.contains('оставка') & (df['Match'] == 1)]
+    # unique_names = names.nunique()
     # merged_final.to_excel('lal.xlsx')
-    return merged_final 
+    return merged_final,df

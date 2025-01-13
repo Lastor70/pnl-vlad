@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 from caching import *
 from data_processing_main_req import process_orders_data
+from excel_utils import save_data_to_excel
 
 st.set_page_config(page_title="Рассчет PNL", page_icon="📈")
 st.title("Рассчет PNL")
@@ -50,11 +51,11 @@ if st.button("Выгрузить и обработать данные"):
     request_type = 'main'
     df_orders = fetch_orders_data(api_key, start_date_str, end_date_str, request_type)
     progress_bar.progress(80)
-    st.write(df_grouped)
+    # st.write(df_grouped)
     
 
     # Обробка замовлень
-    processed_orders = process_orders_data(df_orders, combined_df, df_payment, df_appruv_range, df_grouped)
+    processed_orders,df = process_orders_data(df_orders, combined_df, df_payment, df_appruv_range, df_grouped)
     progress_bar.progress(95)
     
     st.session_state.update({
@@ -63,6 +64,8 @@ if st.button("Выгрузить и обработать данные"):
     #     'df_orders': df_orders,
     #     'df': df
     })
+    st.write(df)
+
 
     # # Обробка каталогу
     # catalog_w_leads, catalog_cash = process_catalog(df, df_payment, df_grouped, combined_df, b, df_appruv_range=df_appruv_range, cash=2)
@@ -78,22 +81,16 @@ if st.button("Выгрузить и обработать данные"):
 
     # st.write(processed_orders)
 
-    filename = save_data_to_excel(
-        catalog_w_leads, 
-        car_space_merged, 
-        catalog_cash, 
-        processed_orders, 
-        spend_wo_leads, 
-        total_vykup, 
-        b, 
-        start_date_str, 
-        end_date_str
-    )
+    # filename = save_data_to_excel(
+    #     processed_orders, 
+    #     start_date_str, 
+    #     end_date_str
+    # )
     
-    with open(filename, "rb") as f:
-        st.download_button(
-            "Скачать Excel файл",
-            f,
-            file_name=filename,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    # with open(filename, "rb") as f:
+    #     st.download_button(
+    #         "Скачать Excel файл",
+    #         f,
+    #         file_name=filename,
+    #         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    #     )
