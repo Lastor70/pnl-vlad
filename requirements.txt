@@ -1,1 +1,10 @@
 streamlit
+pandas
+aiohttp
+openpyxl
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+gspread
+requests
+asyncio
