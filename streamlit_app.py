@@ -1,6 +1,7 @@
 import streamlit as st
 from datetime import datetime, timedelta
 from caching import *
+# from catalog_processing import process_catalog
 from data_processing_main_req import process_orders_data
 from excel_utils import save_data_to_excel
 
@@ -60,16 +61,14 @@ if st.button("Выгрузить и обработать данные"):
     
     st.session_state.update({
         'processed_orders': processed_orders,
+        # 'df_sobes_main': df_sobes_main,
     #     'spend_wo_leads': spend_wo_leads,
     #     'df_orders': df_orders,
-    #     'df': df
+        # 'df': df,
     })
     st.write(processed_orders)
 
 
-    # # Обробка каталогу
-    # catalog_w_leads, catalog_cash = process_catalog(df, df_payment, df_grouped, combined_df, b, df_appruv_range=df_appruv_range, cash=2)
-    # car_space_merged = process_carspace(df, df_payment, df_grouped, combined_df, b, df_appruv_range=df_appruv_range, cash=1)
 
     # st.session_state.update({
     #     'car_space_merged': car_space_merged,
