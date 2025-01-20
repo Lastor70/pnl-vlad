@@ -1,9 +1,11 @@
 import pandas as pd
 import re
-from caching import get_sobes_data
+from caching import fetch_stocks_cache, get_sobes_data
 from sobes_req_processing import process_sobes_data
 import numpy as np
 import openpyxl
+
+from stocks_processing import fetch_stocks
 
 def add_columns(df):
     df_grouped = df.groupby(['Номер замовлення', 'offer_id(заказа)']).agg({'Загальна сума': 'sum',
@@ -13,103 +15,6 @@ def add_columns(df):
                                                                           }).reset_index()
     return df_grouped
 
-def process_catalog(data,df_sobes_main,df_payment,all_fb):
-    # Фільтруємо всі замовлення, що не є тестами або дублями
-    filtered_data = data[~data['Статус'].isin(['testy', 'duplicate'])]
-
-    # Підраховуємо кількість лідів
-    leads = count_unique_orders(filtered_data, 'Кількість лідів')
-
-    # Фільтруємо всі замовлення без треша, дублів, тестів
-    filtered_data = filtered_data[~filtered_data['Статус'].isin(['trash'])]
-
-    # Підраховуємо кількість чистих лідів
-    clear_leads = count_unique_orders(filtered_data, 'Кількість чистих лідів')
-
-    # Фільтруємо всі аппруви
-    filtered_data = filtered_data[~filtered_data['Статус'].isin([
-        'duplicate', 'testy', 'trash', 'new', 'perezvon-1', 'telegram', 'no-call',
-        'cancel-other', 'peredumal', '1d-nedozvon', '2d-nedozvon', '3d-nedozvon'
-    ])]
-
-    # Підраховуємо кількість аппрувів
-    appruv = count_unique_orders(filtered_data, 'Кількість аппрувів')
-
-    # Обробляємо рефанди
-    ref_temp = data[data['Статус'].isin(['refund-done', 'refund-req'])]
-    refund = count_unique_orders(ref_temp, 'Refund')
-    ref_sum = ref_temp.groupby(['offer_id(заказа)']).agg({'Загальна сума': 'sum'}).reset_index()
-    ref_sum = ref_sum.rename(columns={'Загальна сума': 'Refund SUM'})
-
-    # Обробляємо викуп
-    vykup_temp = data[data['Статус'].isin(['payoff', 'complete', 'dostavlen-predvaritelno', 'given'])]
-    vykup = count_unique_orders(vykup_temp, 'Выкуп')
-
-    # Обробляємо повернення
-    vozvrat_temp = data[data['Статус'].isin(['return', 'vozvrat-predvaritelno', 'plan-vozvrat', 'otkaz-pvz'])]
-    vozvrat = count_unique_orders(vozvrat_temp, 'Возврат')
-
-    # Обробляємо замовлення, які доставляються
-    in_delivery_temp = filtered_data[~filtered_data['Статус'].isin([
-        'preorder', 'pending', 'customer-wait', 'assembling', 'client-confirmed', 'assembling-complete'
-    ])]
-    in_delivery = count_unique_orders(in_delivery_temp, 'Доставляются')
-
-    # Об'єднуємо всі результати
-    merged = merge_all_data(leads, clear_leads, appruv, refund, vykup, vozvrat, in_delivery, ref_sum)
-
-    # Копіюємо оригінальний датафрейм
-    df1 = data.copy()
-    df1 = df1[df1['Статус'].isin(['payoff', 'complete', 'dostavlen-predvaritelno', 'given'])]
-
-    # Додаємо колонки
-    dataset_1 = add_match_column(df1, 'offer_id(товара)', 'offer_id(заказа)')
-    # dataset_1['Corresponding_Offer_Id_Found'] = dataset_1.apply(find_offer_id, args=(combined_df,), axis=1).fillna(0)
-
-    # Додаємо колонки для викупу
-    df1_vykup = add_columns(dataset_1)
-    df1_vykup = df1_vykup.rename(columns={'Загальна сума': 'Сумма без доставки', 'Кількість товару': 'Кол-во ед. товара id продано'})
-
-    # Обробляємо доставку
-    order_numbers = dataset_1['Номер замовлення']
-    df_dostavka = df1[df1['Номер замовлення'].isin(order_numbers)]
-    result_dostavka = df_dostavka[df_dostavka['Назва товару'].str.contains('оставка', na=False)][['Номер замовлення', 'offer_id(заказа)', 'Загальна сума', 'Назва товару']]
-
-    dostavka = result_dostavka.groupby(['offer_id(заказа)']).agg({'Загальна сума': 'sum'}).reset_index()
-    dostavka = dostavka.rename(columns={'Загальна сума': 'Сумма по доставке'})
-
-
-    # Остаточне об'єднання
-    merged_2 = merged.merge(dostavka, on='offer_id(заказа)', how='left').merge(df1_vykup, on='offer_id(заказа)', how='left')
-
-
-    merged_2['% Аппрува'] = merged_2['Кількість аппрувів'] / merged_2['Кількість лідів'] * 100
-
-    merged_2 = pd.merge(merged_2, combined_df[['ID Оффера', 'Коэф. Слож.', 'Название оффера']], left_on='offer_id(заказа)', right_on='ID Оффера', how='left')
-
-    merged_2.drop(columns=['ID Оффера'], inplace=True)
-
-    merged_2 = merged_2.fillna(0)
-    merged_2['Сумма по доставке'] = merged_2['Сумма по доставке'] * 1000
-    merged_2['Сумма без доставки'] = merged_2['Сумма без доставки'] * 1000
-    merged_2['Refund SUM'] = merged_2['Refund SUM'] * 1000
-    merged_2['Коэф. Апрува'] = merged_2['% Аппрува'].apply(get_appruv_coefficient)
-
-    merged_total = merge_data(merged_2, all_fb)
-    # display(merged_total)
-
-    merged_total = merged_total.merge(df_sobes_main, how ='left', left_on='offer_id(заказа)', right_on='offer_id(товара)')
-    merged_total = merged_total.merge(df_3, how ='left', right_on='externalId', left_on='offer_id(заказа)')
-    merged_total = merged_total.dropna(subset=['offer_id(заказа)'])
-    merged_total = merged_total.drop_duplicates(subset=['offer_id(заказа)'])
-    # display(merged_total)#['offer_id(заказа)'].value_counts())
-    merged_total['Средняя сумма в заказе'] = merged_total['Сумма по всем проданным товарам без доставки'] / merged_total['Выкуп'] / 1000
-
-    merged_total['Лид до $'] = merged_total.apply(lambda row: get_lead(row, df_payment), axis=1)
-    merged_total['Сумма без доставки'] = merged_total['Сумма без доставки'].fillna(merged_total['Сумма по всем проданным товарам без доставки'])
-
-
-    return merged_total
 
 def add_match_column(df, tovar_id, zakaz_id):
     df.reset_index(drop=True, inplace=True)
@@ -140,7 +45,6 @@ def count_unique_orders(df, column_name):
     return unique_orders_counts
 
 def calculate_orders_w_dops(df,merged):
-  df = df.fillna('non')
   df = df[~df['Назва товару'].str.contains('оставка')]
   aggregated_df = df.groupby('Номер замовлення').agg({
       'call-center': lambda x: ','.join(x.dropna().astype(str)),
@@ -163,7 +67,7 @@ def calculate_orders_w_dops(df,merged):
 
   df_counts = df_counts.rename(columns={'orders_with_dops_count': 'Заказов с допами в апрувах'})
   df_counts = df_counts[['offer_id(заказа)', 'Заказов с допами в апрувах', '% заказов с допами в апрувах']]
-
+#   print(df_counts)
   return df_counts
 
 
@@ -226,7 +130,7 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
     df['offer_id(заказа)'] = df.apply(
     lambda row: 'other' if pd.isna(row['offer_id(заказа)']) or not re.match(r'^[a-zA-Z]{2}-', str(row['offer_id(заказа)'])) else row['offer_id(заказа)'],
     axis=1)
-
+    # print(df[df['offer_id(заказа)']=='other'])
     # статуси
     vykup_statuses = ['complete', 'payoff', 'dostavlen-predvaritelno','refund-req', 'refund-done', 'exchange', 'exchange-done']
     appruv_statuses = ['preorder',
@@ -285,7 +189,7 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
     in_delivery = count_unique_orders(in_delivery_temp, 'Доставляются')
 
     merged = merge_all_data(leads, clear_leads, appruv, refund, vykup, vozvrat, in_delivery, ref_sum)
-
+    
     def process_prodano_main(df):
         df_count_offer_id = df[df['Match']==1].groupby(['offer_id(заказа)']).agg({'Кількість товару': 'sum'}).reset_index().rename(columns={'Кількість товару':'Продано товаров шт. (OID)'})
         df_count_all = df[df['Назва товару'].notna() & (~df['Назва товару'].str.contains('оставка', na=False))].groupby(['offer_id(заказа)']).agg({'Кількість товару': 'sum'}).reset_index().rename(columns={'Кількість товару':'Продано товаров всего'})
@@ -300,17 +204,22 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
 
     df_dops_in_appruvs = calculate_orders_w_dops(new,merged)  
 
-    
-    merged_final = merged.merge(prodano_oid, on='offer_id(заказа)', how='left')\
-                         .merge(df_3, left_on='offer_id(заказа)', right_on='offer_id(товара)')\
-                         .merge(df_sobes_main, left_on='offer_id(заказа)', right_on='offer_id(товара)')\
-                         .merge(prodano_all,on='offer_id(заказа)', how='left')\
-                         .merge(df_dops_in_appruvs ,on='offer_id(заказа)', how='left')\
-                         .merge(profit_oid,on='offer_id(заказа)', how='left')\
-                         .merge(profit_all,on='offer_id(заказа)', how='left')\
-                         .merge(df_sum_all_w_delivery,on='offer_id(заказа)', how='left')\
-                         .merge(appruv_avg_sum,on='offer_id(заказа)', how='left')\
-                         .merge(df_grouped ,left_on='offer_id(заказа)', right_on='offer_id')
+    ##########   MERGE
+    merged['offer_id(заказа)'] = merged['offer_id(заказа)'].astype(str)
+    prodano_oid['offer_id(заказа)'] = prodano_oid['offer_id(заказа)'].astype(str)
+    df_3['offer_id(товара)'] = df_3['offer_id(товара)'].astype(str)
+    df_sobes_main['offer_id(товара)'] = df_sobes_main['offer_id(товара)'].astype(str)
+
+    merged_final = merged.merge(prodano_oid, on='offer_id(заказа)', how='left', suffixes=('', '_prodano'))
+    merged_final = merged_final.merge(df_3, left_on='offer_id(заказа)', right_on='offer_id(товара)', how='left', suffixes=('', '_df3'))
+    merged_final = merged_final.merge(df_sobes_main, left_on='offer_id(заказа)', right_on='offer_id(товара)', how='left', suffixes=('', '_sobes'))
+    merged_final = merged_final.merge(prodano_all, on='offer_id(заказа)', how='left')
+    merged_final = merged_final.merge(df_dops_in_appruvs, on='offer_id(заказа)', how='left')
+    merged_final = merged_final.merge(profit_oid, on='offer_id(заказа)', how='left')
+    merged_final = merged_final.merge(profit_all, on='offer_id(заказа)', how='left')
+    merged_final = merged_final.merge(df_sum_all_w_delivery, on='offer_id(заказа)', how='left')
+    merged_final = merged_final.merge(appruv_avg_sum, on='offer_id(заказа)', how='left')    
+    merged_final = merged_final.merge(df_grouped,left_on='offer_id(заказа)', right_on='offer_id')
 
     merged_final['% Аппрува'] = merged_final['Кількість аппрувів'] / merged_final['Кількість лідів'] * 100
     merged_final['Коэф. Апрува'] = merged_final['% Аппрува'].apply(
@@ -331,19 +240,21 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
     merged_final['Refund SUM'] = merged_final['Refund SUM'] * 1000
     merged_final['Выручка по OID без доставки (от этого значения 5% баеру)'] = merged_final['Выручка по OID без доставки (от этого значения 5% баеру)'] * 1000
     merged_final['Выручка по всем товарам без доставки (все товары)_y'] = merged_final['Выручка по всем товарам без доставки (все товары)_y'] * 1000
-    merged_final['Refund SUM'] = merged_final['Refund SUM'] * 1000
 
+    #stocks
+    stocks = fetch_stocks_cache()
+
+    # print(merged_final['offer_id(заказа)'].unique())
     
     names = df.dropna(subset=['Назва товару'])
     names = names[~names['Назва товару'].str.contains('оставка') & names['Match'] == 1]
     names = names.groupby('offer_id(заказа)').agg({'Назва товару': 'first'})
     
     merged_final = merged_final.merge(names, how='left', on='offer_id(заказа)')
+    pattern = r'^[a-zA-Z]{2}-[a-zA-Z]{2}-\d{4}$'
+    df_categories = merged_final[~merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
+    df_non_categories = merged_final[merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
     
-    #каталожка
-    # df_catalog = df[df['offer_id(заказа)'].notna() & df['offer_id(заказа)'].str.match(r'^[a-zA-Z]{2}-[a-zA-Z]{2}-[^0-9]{0,3}\d{0,3}[^0-9]{1,}$')]
-    # result_df_catalog = process_catalog(df_catalog,df_sobes_main,df_payment,df_grouped)
-
-
-
-    return merged_final
+    df_non_categories = df_non_categories.merge(stocks, left_on='offer_id(заказа)', right_on='article')
+    print(df_categories)
+    return df_non_categories,df_categories

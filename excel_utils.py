@@ -1,10 +1,10 @@
 import openpyxl
 
-def save_data_to_excel(merged_ss, start_date, end_date):
+def save_data_to_excel(merged_ss, start_date, end_date,df_categories):
     file_path = 'data/template-p&l-3.0.xlsx'  
     wb1 = openpyxl.load_workbook(file_path)
     sh_paste = wb1['Лист1']
-    # sh_catalog = wb1['Catalog']
+    sh_catalog = wb1['Catalog']
 
     column_mapping = {
         'Назва товару': 'A',
@@ -17,6 +17,7 @@ def save_data_to_excel(merged_ss, start_date, end_date):
         'Выкуп': 'L',
         'Refund': 'N',
         'Продано товаров шт. (OID)': 'P',
+        'quantity': 'Q',
         'Себес (OID) из СРМ': 'R',
         'Продано товаров всего': 'S',
         '% заказов с допами в апрувах': 'U',
@@ -46,21 +47,10 @@ def save_data_to_excel(merged_ss, start_date, end_date):
         'Лидов из ads': 'AD'
     }
 
-    map_catalog = {
-        'Название оффера': 'B',
-        'offer_id(заказа)': 'C',
-        'Кількість лідів': 'D',
-        'Кількість чистих лідів': 'E',
-        'Кількість аппрувів': 'G',
-        'Средняя сумма в апрувах': 'J',
-        'Лид до $': 'L',
-        'Коэф. Апрува': 'M',
-        'spend': 'N',
-        'leads': 'O',
-    }
 
-    # if not catalog_w_leads.empty:
-    #     paste_data(catalog_w_leads, column_mapping, sh_catalog)
+
+    if not df_categories.empty:
+        paste_data(df_categories, column_mapping, sh_catalog)
     # if not catalog_cash.empty:
     #     paste_data(catalog_cash, map_cash, sh_catalog)    
 

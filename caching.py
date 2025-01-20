@@ -5,10 +5,15 @@ from google_sheets import fetch_and_process_all_sheets
 from process_payment import fetch_and_process_payment_sheet
 from facebook_api import fetch_facebook_data
 from sobes_req_processing import fetch_sobes_data_from_api
+from stocks_processing import fetch_stocks
 
 # @st.cache_data
 def fetch_tokens_data(spreadsheet_id, sheet_name, creds_dict):
     return fetch_google_sheet_data(spreadsheet_id, sheet_name, creds_dict)
+
+@st.cache_data(ttl=3600)
+def fetch_stocks_cache():
+    return fetch_stocks()
 
 @st.cache_data(ttl=3600)
 def get_sobes_data():
