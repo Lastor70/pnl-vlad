@@ -45,6 +45,7 @@ def count_unique_orders(df, column_name):
     return unique_orders_counts
 
 def calculate_orders_w_dops(df,merged):
+  df = df.dropna(subset=['Назва товару'])
   df = df[~df['Назва товару'].str.contains('оставка')]
   aggregated_df = df.groupby('Номер замовлення').agg({
       'call-center': lambda x: ','.join(x.dropna().astype(str)),
@@ -256,5 +257,4 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     df_non_categories = merged_final[merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
     
     df_non_categories = df_non_categories.merge(stocks, left_on='offer_id(заказа)', right_on='article')
-    print(df_categories)
     return df_non_categories,df_categories
