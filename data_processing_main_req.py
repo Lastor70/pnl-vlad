@@ -82,7 +82,7 @@ def get_appruv_coefficient(approval_percent, df_appruv_range):
 
     return None
 
-def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped):
+def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     """Обробляє отримані замовлення та форматує DataFrame."""
     
     mask = ['number', 'status', 'createdAt', 'customFields', 'items']
@@ -147,7 +147,7 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
     'refund-req', 'refund-done', 'exchange', 'exchange-done']
 
     #себеси
-    df_sobes = get_sobes_data()
+    df_sobes = get_sobes_data(api_key)
     df_sobes_main, df_3 = process_sobes_data(df, vykup_statuses, df_sobes)
 
 
@@ -242,7 +242,7 @@ def process_orders_data(df, combined_df, df_payment, df_appruv_range, df_grouped
     merged_final['Выручка по всем товарам без доставки (все товары)_y'] = merged_final['Выручка по всем товарам без доставки (все товары)_y'] * 1000
 
     #stocks
-    stocks = fetch_stocks_cache()
+    stocks = fetch_stocks_cache(api_key)
 
     # print(merged_final['offer_id(заказа)'].unique())
     

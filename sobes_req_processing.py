@@ -32,9 +32,8 @@ def process_sobes_data(df, vykup_statuses, df_sobes):
 
     return df_total_in_order, df_3
 
-def fetch_sobes_data_from_api():
+def fetch_sobes_data_from_api(api_key):
     url = 'https://uzshopping.retailcrm.ru/api/v5/store/inventories'
-    api_key = 'JS08oUkdygh4tyMotd28sjlZerMTEemr'
     params = {
         'apiKey': api_key,
         'limit': 100

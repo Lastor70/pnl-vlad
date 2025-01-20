@@ -56,7 +56,7 @@ if st.button("Выгрузить и обработать данные"):
     
 
     # Обробка замовлень
-    processed_orders,df_categories = process_orders_data(df_orders, combined_df, df_payment, df_appruv_range, df_grouped)
+    processed_orders,df_categories = process_orders_data(df_orders, api_key, df_payment, df_appruv_range, df_grouped)
     progress_bar.progress(95)
     
     st.session_state.update({

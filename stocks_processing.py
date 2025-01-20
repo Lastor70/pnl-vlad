@@ -1,9 +1,8 @@
 import requests
 import pandas as pd
 
-def fetch_stocks():
+def fetch_stocks(api_key):
     url = 'https://uzshopping.retailcrm.ru/api/v5/store/offers'
-    api_key = '2UzU5byg8DgspnSNahOdKaaTGyB7elQ6'
     params = {
         'apiKey': api_key,
         'site': 'vlad_ss',
