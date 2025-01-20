@@ -201,8 +201,22 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
 
     prodano_oid,prodano_all,profit_oid,profit_all,df_sum_all_w_delivery = process_prodano_main(vykup_temp)
 
-    appruv_avg_sum = new[new['Назва товару'].notna() & (~df['Назва товару'].str.contains('оставка', na=False))].groupby(['offer_id(заказа)']).agg({'Загальна сума': 'mean'}).reset_index().rename(columns={'Загальна сума':'Средний чек апрува без доставки'})
-
+    appruv_avg_sum = (
+        new[
+            (new['Назва товару'].notna() & ~new['Назва товару'].str.contains('оставка', na=False)) |
+            (new['Назва товару'].isna())  # Додана умова через логічне "АБО"
+        ]
+        .groupby(['Номер замовлення'])  # Групуємо за номером замовлення
+        .agg({'Загальна сума': 'sum'})  # Сума для кожного замовлення (без доставки)
+        .reset_index()
+        .merge(new[['Номер замовлення', 'offer_id(заказа)']], on='Номер замовлення', how='left')  # Додаємо offer_id(заказа)
+        .groupby('offer_id(заказа)')  # Групуємо за offer_id(заказа)
+        .agg({'Загальна сума': 'mean'})  # Середнє значення загальних сум
+        .reset_index()
+        .rename(columns={'Загальна сума': 'Средний чек апрува без доставки'})
+    )
+    # print(new[new['offer_id(заказа)']=='tv-ss-0018'][['Загальна сума','Номер замовлення']])
+    # print(appruv_avg_sum)
     df_dops_in_appruvs = calculate_orders_w_dops(new,merged)  
 
     ##########   MERGE
