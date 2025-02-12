@@ -32,14 +32,19 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories):
         'Себес товаров': 'AL',                                                                                 
     }
 
-    def paste_data(df, mapping, sheet):
+    def copy_formatting(src_sheet, dest_sheet):
+        for row in src_sheet.iter_rows():
+            for cell in row:
+                dest_cell = dest_sheet[cell.coordinate]
+                dest_cell._style = cell._style 
+
+    def paste_data_with_formatting(df, mapping, sheet):
         for df_column, excel_column in mapping.items():
-            if df_column in df.columns:  # Перевірка на наявність стовпця в DataFrame
+            if df_column in df.columns:
                 column_data = df[df_column]
                 for row_idx, value in enumerate(column_data, start=1):
                     cell = sheet[f"{excel_column}{row_idx+6}"]
                     cell.value = value
-                    cell._style = sheet[f"{excel_column}7"]._style
 
     map_cash = {
         'offer_id': 'AB',
@@ -47,16 +52,14 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories):
         'Лидов из ads': 'AD'
     }
 
-
+    copy_formatting(sh_paste, sh_paste)
+    copy_formatting(sh_catalog, sh_catalog)
 
     if not df_categories.empty:
-        paste_data(df_categories, column_mapping, sh_catalog)
-    # if not catalog_cash.empty:
-    #     paste_data(catalog_cash, map_cash, sh_catalog)    
-
-    paste_data(merged_ss, column_mapping, sh_paste)
+        paste_data_with_formatting(df_categories, column_mapping, sh_catalog)
+    paste_data_with_formatting(merged_ss, column_mapping, sh_paste)
 
     filename = f'PNL за {start_date}-{end_date}.xlsx'
     wb1.save(filename)
 
-    return filename  # Повертаємо шлях до збереженого файлу
+    return filename 
