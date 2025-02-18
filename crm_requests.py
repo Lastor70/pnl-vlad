@@ -6,23 +6,32 @@ import requests
 
 logging.basicConfig(level=logging.INFO)
 
+# Константи
+TIMEOUT_SECONDS = 60
+MAX_CONCURRENT_REQUESTS = 10
+
+# Семафор для обмеження одночасних запитів
+semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+
 # Функція для виконання запиту
 async def req(session, url, params):
-    async with session.get(url, params=params) as response:
+    async with session.get(url, params=params, timeout=TIMEOUT_SECONDS) as response:
         return await response.json()
 
-# Функція для асинхронної обробки сторінок з тайм-аутом і ретраями
+# Функція для асинхронної обробки сторінок з тайм-аутом, ретраями і семафором
 async def fetch_page(session, url, params, page, retries=5, initial_delay=1):
-    """Асинхронний запит для отримання даних зі сторінки з ретраями."""
+    """Асинхронний запит для отримання даних зі сторінки з семафором і ретраями."""
     params['page'] = page
     delay = initial_delay
     for attempt in range(retries):
-        try:
-            response = await req(session, url, params)
-            if response['success']:
-                return response
-        except Exception as e:
-            logging.error(f"Error fetching page {page}: {e}")
+        async with semaphore:  # Обмеження одночасних запитів
+            try:
+                response = await req(session, url, params)
+                if response['success']:
+                    return response
+            except Exception as e:
+                logging.error(f"Error fetching page {page}: {e}")
+        
         await asyncio.sleep(delay)
         delay = min(delay * 2, 10)  # Експоненційна затримка до 10 секунд
 
@@ -45,7 +54,6 @@ async def gather_orders(api_key, start_date, end_date, request_type, batch_size=
 
             results = await asyncio.gather(*tasks)
             for idx, result in enumerate(results):
-                # Переконаємось, що результат — це не серія, а словник або список
                 df.at[batch_start + idx, 'result'] = [result] if result else None
 
             logging.info(f"Processed pages {batch_start + 1} to {batch_end}")
@@ -76,7 +84,6 @@ def fetch_orders_params(api_key, start_date, end_date, request_type):
             'apiKey': api_key,
             'filter[createdAtFrom]': start_date,
             'filter[createdAtTo]': end_date,
-            # 'filter[customFields][buyer_id]': buyer_id,
             'limit': 100,
         }
     else:
@@ -84,7 +91,6 @@ def fetch_orders_params(api_key, start_date, end_date, request_type):
             'apiKey': api_key,
             'filter[statusUpdatedAtFrom]': start_date,
             'filter[statusUpdatedAtTo]': end_date,
-            # 'filter[customFields][buyer_id]': buyer_id,
             'limit': 100,
         }
 
