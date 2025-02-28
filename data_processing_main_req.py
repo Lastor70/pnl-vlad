@@ -210,6 +210,8 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
         .agg({'Загальна сума': 'sum'})  # Сума для кожного замовлення (без доставки)
         .reset_index()
         .merge(new[['Номер замовлення', 'offer_id(заказа)']], on='Номер замовлення', how='left')  # Додаємо offer_id(заказа)
+        .drop_duplicates(subset='Номер замовлення')  # Видаляємо дублікати offer_id(заказа)
+
         .groupby('offer_id(заказа)')  # Групуємо за offer_id(заказа)
         .agg({'Загальна сума': 'mean'})  # Середнє значення загальних сум
         .reset_index()
