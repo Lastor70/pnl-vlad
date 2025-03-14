@@ -145,15 +145,17 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     'return',
     'vozvrat-predvaritelno',
     'plan-vozvrat',
-    'refund-req', 'refund-done', 'exchange', 'exchange-done']
+    'refund-req', 'refund-done', 'exchange', 'exchange-done',
+    'perepodtverdit-net-xml-koda','perepodtverdit-net-tovara']
 
     #себеси
     df_sobes = get_sobes_data(api_key)
     df_sobes_main, df_3 = process_sobes_data(df, vykup_statuses, df_sobes)
 
+    df['offer_id_cut'] = df['offer_id(заказа)'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
 
-    dataset = add_match_column(df, 'offer_id(товара)', 'offer_id(заказа)')
-
+    dataset = add_match_column(df, 'offer_id(товара)', 'offer_id_cut')
+    # print(dataset)
     #тута всі закази без дублів та тестів      
     new = dataset[~dataset['Статус'].isin(['testy','duplicate'])]
     #тута табличка яка містить кількість лідів
@@ -222,13 +224,17 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     df_dops_in_appruvs = calculate_orders_w_dops(new,merged)  
 
     ##########   MERGE
+    merged['offer_id_cut'] = merged['offer_id(заказа)'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
+
     merged['offer_id(заказа)'] = merged['offer_id(заказа)'].astype(str)
+    # merged['offer_id_cut'] = merged['offer_id_cut'].astype(str)
+
     prodano_oid['offer_id(заказа)'] = prodano_oid['offer_id(заказа)'].astype(str)
     df_3['offer_id(товара)'] = df_3['offer_id(товара)'].astype(str)
     df_sobes_main['offer_id(товара)'] = df_sobes_main['offer_id(товара)'].astype(str)
 
-    merged_final = merged.merge(prodano_oid, on='offer_id(заказа)', how='left', suffixes=('', '_prodano'))
-    merged_final = merged_final.merge(df_3, left_on='offer_id(заказа)', right_on='offer_id(товара)', how='left', suffixes=('', '_df3'))
+    merged_final = merged.merge(prodano_oid, left_on='offer_id(заказа)', right_on='offer_id(заказа)', how='left', suffixes=('', '_prodano'))
+    merged_final = merged_final.merge(df_3, left_on='offer_id_cut', right_on='offer_id(товара)', how='left', suffixes=('', '_df3'))
     merged_final = merged_final.merge(df_sobes_main, left_on='offer_id(заказа)', right_on='offer_id(товара)', how='left', suffixes=('', '_sobes'))
     merged_final = merged_final.merge(prodano_all, on='offer_id(заказа)', how='left')
     merged_final = merged_final.merge(df_dops_in_appruvs, on='offer_id(заказа)', how='left')
@@ -268,9 +274,23 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     names = names.groupby('offer_id(заказа)').agg({'Назва товару': 'first'})
     
     merged_final = merged_final.merge(names, how='left', on='offer_id(заказа)')
-    pattern = r'^[a-zA-Z]{2}-[a-zA-Z]{2}-\d{4}$'
+    pattern = r'^[a-zA-Z]{2}-[a-zA-Z]{2}-\d{4}(-[a-zA-Z]{2})?$'
     df_categories = merged_final[~merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
     df_non_categories = merged_final[merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
     
-    df_non_categories = df_non_categories.merge(stocks, left_on='offer_id(заказа)', right_on='article')
+    
+    # df_non_categories = merged_final[
+    # merged_final['offer_id(заказа)'].str.match(r'^[a-zA-Z]{2}-[a-zA-Z]{2}-\d{4}(-[a-zA-Z]{2})?$')
+    #     & merged_final['offer_id(заказа)'].notna()
+    #     ]
+    
+    df_non_categories['offer_id_cut'] = df_non_categories['offer_id(заказа)'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
+    df_non_categories = df_non_categories.merge(stocks, left_on='offer_id_cut', right_on='article')
+    # print(df_non_categories)
+    
+    #додаю все в один дф і підписую категорії
+    df_non_categories['category'] = 'non-catalog'
+    df_categories['category'] = 'catalog'
+
+    df_non_categories = pd.concat([df_non_categories,df_categories])
     return df_non_categories,df_categories
