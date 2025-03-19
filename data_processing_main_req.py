@@ -192,7 +192,6 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     in_delivery = count_unique_orders(in_delivery_temp, 'Доставляются')
 
     merged = merge_all_data(leads, clear_leads, appruv, refund, vykup, vozvrat, in_delivery, ref_sum)
-    
     def process_prodano_main(df):
         df_count_offer_id = df[df['Match']==1].groupby(['offer_id(заказа)']).agg({'Кількість товару': 'sum'}).reset_index().rename(columns={'Кількість товару':'Продано товаров шт. (OID)'})
         df_count_all = df[df['Назва товару'].notna() & (~df['Назва товару'].str.contains('оставка', na=False))].groupby(['offer_id(заказа)']).agg({'Кількість товару': 'sum'}).reset_index().rename(columns={'Кількість товару':'Продано товаров всего'})
@@ -232,7 +231,6 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     prodano_oid['offer_id(заказа)'] = prodano_oid['offer_id(заказа)'].astype(str)
     df_3['offer_id(товара)'] = df_3['offer_id(товара)'].astype(str)
     df_sobes_main['offer_id(товара)'] = df_sobes_main['offer_id(товара)'].astype(str)
-
     merged_final = merged.merge(prodano_oid, left_on='offer_id(заказа)', right_on='offer_id(заказа)', how='left', suffixes=('', '_prodano'))
     merged_final = merged_final.merge(df_3, left_on='offer_id_cut', right_on='offer_id(товара)', how='left', suffixes=('', '_df3'))
     merged_final = merged_final.merge(df_sobes_main, left_on='offer_id(заказа)', right_on='offer_id(товара)', how='left', suffixes=('', '_sobes'))
@@ -242,7 +240,7 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     merged_final = merged_final.merge(profit_all, on='offer_id(заказа)', how='left')
     merged_final = merged_final.merge(df_sum_all_w_delivery, on='offer_id(заказа)', how='left')
     merged_final = merged_final.merge(appruv_avg_sum, on='offer_id(заказа)', how='left')    
-    merged_final = merged_final.merge(df_grouped,left_on='offer_id(заказа)', right_on='offer_id')
+    merged_final = merged_final.merge(df_grouped,left_on='offer_id(заказа)', right_on='offer_id', how='left')
 
     merged_final['% Аппрува'] = merged_final['Кількість аппрувів'] / merged_final['Кількість лідів'] * 100
     merged_final['Коэф. Апрува'] = merged_final['% Аппрува'].apply(
@@ -277,7 +275,7 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     pattern = r'^[a-zA-Z]{2}-[a-zA-Z]{2}-\d{4}(-[a-zA-Z]{2})?$'
     df_categories = merged_final[~merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
     df_non_categories = merged_final[merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
-    
+
     
     # df_non_categories = merged_final[
     # merged_final['offer_id(заказа)'].str.match(r'^[a-zA-Z]{2}-[a-zA-Z]{2}-\d{4}(-[a-zA-Z]{2})?$')
@@ -285,8 +283,8 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     #     ]
     
     df_non_categories['offer_id_cut'] = df_non_categories['offer_id(заказа)'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
-    df_non_categories = df_non_categories.merge(stocks, left_on='offer_id_cut', right_on='article')
-    # print(df_non_categories)
+    df_non_categories = df_non_categories.merge(stocks, left_on='offer_id_cut', right_on='article', how='left')
+    # print(stocks[stocks['article']=='ss-mb-0065'])
     
     #додаю все в один дф і підписую категорії
     df_non_categories['category'] = 'non-catalog'

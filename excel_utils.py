@@ -48,9 +48,9 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories):
                     cell.value = value
 
     map_cash = {
-        'offer_id': 'AB',
-        'Рекл.спенд.': 'AC',
-        'Лидов из ads': 'AD'
+        'offer_id': 'BJ',
+        'Рекл.спенд.': 'BK',
+        'Лидов из ads': 'BL'
     }
 
     copy_formatting(sh_paste, sh_paste)
