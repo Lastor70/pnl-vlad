@@ -56,12 +56,13 @@ if st.button("Выгрузить и обработать данные"):
     
 
     # Обробка замовлень
-    processed_orders,df_categories = process_orders_data(df_orders, api_key, df_payment, df_appruv_range, df_grouped)
+    processed_orders,df_categories,df_spend_wo_leads = process_orders_data(df_orders, api_key, df_payment, df_appruv_range, df_grouped)
     progress_bar.progress(95)
     
     st.session_state.update({
         'processed_orders': processed_orders,
         'df_categories': df_categories,
+        'df_spend_wo_leads': df_spend_wo_leads,
         # 'df_sobes_main': df_sobes_main,
     #     'spend_wo_leads': spend_wo_leads,
     #     'df_orders': df_orders,
@@ -86,6 +87,7 @@ if st.button("Выгрузить и обработать данные"):
         start_date_str, 
         end_date_str,
         df_categories,
+        df_spend_wo_leads,
     )
     
     with open(filename, "rb") as f:

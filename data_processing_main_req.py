@@ -242,6 +242,22 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     merged_final = merged_final.merge(appruv_avg_sum, on='offer_id(заказа)', how='left')    
     merged_final = merged_final.merge(df_grouped,left_on='offer_id(заказа)', right_on='offer_id', how='left')
 
+    # spend для other 
+    pattern = r'[a-zA-Z]{2}-[a-zA-Z]{2}-'
+    df_invalid = df_grouped[~df_grouped['offer_id'].str.contains(pattern, na=False)]
+    total_spend_invalid = df_invalid['spend'].sum()
+    merged_final['spend'] = merged_final.apply(
+        lambda x: total_spend_invalid if x['offer_id(заказа)'] == 'other' else x['spend'], 
+        axis=1
+    )
+
+
+    # spend wo leads
+    df_valid = df_grouped[df_grouped['offer_id'].str.contains(pattern, na=False)].query('spend != 0')
+    df_spend_wo_leads = df_valid[~df_valid['offer_id'].isin(merged_final['offer_id(заказа)'])]
+    # print(df_spend_wo_leads)
+
+
     merged_final['% Аппрува'] = merged_final['Кількість аппрувів'] / merged_final['Кількість лідів'] * 100
     merged_final['Коэф. Апрува'] = merged_final['% Аппрува'].apply(
         lambda x: get_appruv_coefficient(x, df_appruv_range)
@@ -291,4 +307,39 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     df_categories['category'] = 'catalog'
 
     df_non_categories = pd.concat([df_non_categories,df_categories])
-    return df_non_categories,df_categories
+
+    df_summary_offers = df_non_categories.groupby('offer_id_cut').agg({
+        'Кількість лідів': 'sum',  
+        'Кількість чистих лідів': 'sum',
+        'Кількість аппрувів': 'sum',
+        'Refund': 'sum',
+        'Выкуп': 'sum',
+        'Возврат': 'sum',
+        'Доставляются': 'sum',
+        'Refund SUM': 'sum',
+        'Продано товаров шт. (OID)': 'sum',
+        'offer_id(товара)': 'first',  
+        'Себес (OID) из СРМ': 'mean',  # Середнє значення для кожної групи
+        'offer_id(товара)_sobes': 'first',  # Перше значення для кожної групи
+        'Выручка по всем товарам без доставки (все товары)_x': 'sum',
+        'Себес товаров': 'sum',
+        'Продано товаров всего': 'sum',
+        'Заказов с допами в апрувах': 'sum',
+        '% заказов с допами в апрувах': 'mean',  # Середнє значення
+        'Выручка по OID без доставки (от этого значения 5% баеру)': 'sum',
+        'Выручка по всем товарам без доставки (все товары)_y': 'sum',
+        'Итоговая выручка с дост. в СУМ': 'sum',
+        'Средний чек апрува без доставки': 'mean',
+        'offer_id': 'first',  # Перше значення для кожної групи
+        'spend': 'sum',
+        'leads': 'sum',
+        '% Аппрува': 'mean',  # Середнє значення
+        'Коэф. Апрува': 'mean',  # Середнє значення
+        'Лид до $': 'mean',  # Середнє значення
+        'Назва товару': 'first',  # Перше значення для кожної групи
+        'article': 'first',  # Перше значення для кожної групи
+        'quantity': 'sum',  # Сума кількості
+        'category': 'first'  # Перше значення для кожної групи
+    }).reset_index()
+    print(df_summary_offers)
+    return df_non_categories,df_summary_offers,df_spend_wo_leads

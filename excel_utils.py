@@ -1,6 +1,6 @@
 import openpyxl
 
-def save_data_to_excel(merged_ss, start_date, end_date,df_categories):
+def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo_leads):
     file_path = 'data/template-p&l-4.0.xlsx'  
     wb1 = openpyxl.load_workbook(file_path)
     sh_paste = wb1['Лист1']
@@ -10,6 +10,33 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories):
         'Назва товару': 'A',
         'category': 'B',
         'offer_id(заказа)': 'D',
+        'Кількість лідів': 'E',
+        'Кількість чистих лідів': 'F',
+        'Кількість аппрувів': 'H',
+        'Доставляются': 'K',
+        'Возврат': 'M',
+        'Выкуп': 'N',
+        'Refund': 'P',
+        'Продано товаров шт. (OID)': 'R',
+        'quantity': 'S',
+        'Себес (OID) из СРМ': 'T',
+        'Продано товаров всего': 'U',
+        '% заказов с допами в апрувах': 'W',
+        # 'Выручка по OID без доставки (от этого значения 5% баеру)': 'V',
+        'Выручка по всем товарам без доставки (все товары)_y': 'X',
+        'Итоговая выручка с дост. в СУМ': 'Z',
+        'Средний чек апрува без доставки': 'AB',
+        # 'Коэф. Апрува': 'AA',
+        # 'Лид до $': 'AB',
+        'spend': 'AE',
+        'Refund SUM': 'AN',        
+        'Себес товаров': 'AP',                                                                                 
+    }
+
+    column_mapping_for_all = {
+        'Назва товару': 'A',
+        'category': 'B',
+        'offer_id_cut': 'D',
         'Кількість лідів': 'E',
         'Кількість чистих лідів': 'F',
         'Кількість аппрувів': 'H',
@@ -49,15 +76,19 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories):
 
     map_cash = {
         'offer_id': 'BJ',
-        'Рекл.спенд.': 'BK',
-        'Лидов из ads': 'BL'
+        'spend': 'BK',
+        'leads': 'BL'
     }
 
     copy_formatting(sh_paste, sh_paste)
     copy_formatting(sh_catalog, sh_catalog)
 
     if not df_categories.empty:
-        paste_data_with_formatting(df_categories, column_mapping, sh_catalog)
+        paste_data_with_formatting(df_categories, column_mapping_for_all, sh_catalog)
+
+    if not df_spend_wo_leads.empty:
+        paste_data_with_formatting(df_spend_wo_leads, map_cash, sh_paste)
+
     paste_data_with_formatting(merged_ss, column_mapping, sh_paste)
 
     filename = f'PNL за {start_date}-{end_date}.xlsx'
