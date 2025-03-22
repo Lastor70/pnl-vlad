@@ -145,9 +145,9 @@ def fetch_facebook_data(df_tokens, start_date_str, end_date_str):
         ad_accounts_df = get_all_accounts(tokens)
         campaigns_data = get_all_campaigns_data(ad_accounts_df)
         campaigns_data['offer_id'] = campaigns_data['Campaign Name'].apply(lambda x: x.split('|')[2].strip() if len(x.split('|')) > 2 else None)
-        campaigns_data = campaigns_data.dropna(subset=['offer_id'])
+        campaigns_data['offer_id'] = campaigns_data['offer_id'].fillna("other camp")
         df_campaign_data = asyncio.run(get_campaign_data_for_filtered_df(campaigns_data, start_date_str, end_date_str))
-        print(111)
+        # df_campaign_data.to_excel('sas.xlsx')
         df_grouped = group_data_by_offer_id(df_campaign_data)
         return df_grouped
     return None
