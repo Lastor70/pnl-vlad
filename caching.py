@@ -6,6 +6,7 @@ from process_payment import fetch_and_process_payment_sheet
 from facebook_api import fetch_facebook_data
 from sobes_req_processing import fetch_sobes_data_from_api
 from stocks_processing import fetch_stocks
+from statuses_groups import get_status_groups
 
 # @st.cache_data
 def fetch_tokens_data(spreadsheet_id, sheet_name, creds_dict):
@@ -40,3 +41,7 @@ def fetch_payment_data(spreadsheet_id, sheet_name, creds_dict):
 @st.cache_data(ttl=3600)
 def cached_fetch_facebook_data(df_tokens, start_date_str, end_date_str):
     return fetch_facebook_data(df_tokens, start_date_str, end_date_str)
+
+@st.cache_data(ttl=3600)
+def get_status_groups_cached(api_key):
+    return get_status_groups(api_key)

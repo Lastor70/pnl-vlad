@@ -9,6 +9,7 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo
     column_mapping = {
         'Назва товару': 'A',
         'category': 'B',
+        'buyer': 'C',
         'offer_id(заказа)': 'D',
         'Кількість лідів': 'E',
         'Кількість чистих лідів': 'F',
@@ -36,6 +37,7 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo
     column_mapping_for_all = {
         'Назва товару': 'A',
         'category': 'B',
+        'buyer': 'C',
         'offer_id_cut': 'D',
         'Кількість лідів': 'E',
         'Кількість чистих лідів': 'F',
@@ -75,6 +77,7 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo
                     cell.value = value
 
     map_cash = {
+        'buyer_id': 'BI',
         'offer_id': 'BJ',
         'spend': 'BK',
         'leads': 'BL'
