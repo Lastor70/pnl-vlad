@@ -87,9 +87,12 @@ def get_appruv_coefficient(approval_percent, df_appruv_range):
 
 
 
-def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped,appruv_statuses,vykup_statuses,df_3,df_sobes_main):
+def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped,appruv_statuses,vykup_statuses,df_sobes):
+    df_sobes_main, df_3 = process_sobes_data(df, vykup_statuses, df_sobes)
+    df['offer_id_cut'] = df['offer_id(заказа)'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
+    
+    
     dataset = add_match_column(df, 'offer_id(товара)', 'offer_id_cut')
-    # print(dataset)
     #тута всі закази без дублів та тестів      
     new = dataset[~dataset['Статус'].isin(['testy','duplicate'])]
     #тута табличка яка містить кількість лідів
@@ -292,10 +295,23 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     df = df.reindex(columns=desired_column_order)
     
     #додаємо other
-    df['offer_id(заказа)'] = df.apply(
-    lambda row: 'other' if pd.isna(row['offer_id(заказа)']) or not re.match(r'^[a-zA-Z]{2}-', str(row['offer_id(заказа)'])) else row['offer_id(заказа)'],
-    axis=1)
+    # df['old_offer_id(заказа)'] = df['offer_id(заказа)']
+    import string
+
+    def clean_string(val):
+        val = str(val)
+        val = ''.join(c for c in val if c in string.printable)
+        return val.strip()
+
+    df['offer_id(заказа)'] = df['offer_id(заказа)'].apply(
+        lambda x: 'other'
+        if pd.isna(x) or not re.match(r'^[a-zA-Z]{2}-', clean_string(x))
+        else x
+    )
+    df['buyer_id'] = df.apply(lambda x: None if x['offer_id(заказа)'] == 'other' else x['buyer_id'], axis=1)
     # print(df[df['offer_id(заказа)']=='other'])
+
+
     # статуси
     vykup_statuses = ['complete', 'payoff', 'dostavlen-predvaritelno','refund-req', 'refund-done', 'exchange', 'exchange-done']
     
@@ -303,27 +319,23 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
 
     #себеси
     df_sobes = get_sobes_data(api_key)
-    df_sobes_main, df_3 = process_sobes_data(df, vykup_statuses, df_sobes)
-
-    df['offer_id_cut'] = df['offer_id(заказа)'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
     
     #тут окремо по кожному баєру робимо
     buyers = df['buyer_id'].unique().tolist()
     df_non_categories_total = pd.DataFrame() 
     df_spend_wo_leads_total = pd.DataFrame()
-
     for buyer in buyers:
         if len(str(buyer)) == 2:
             df_buyer = df[df['buyer_id'] == buyer].copy()
             df_fb = df_grouped[df_grouped['buyer_id'] == buyer]
             df_fb = df_fb.groupby('offer_id').agg({'spend': 'sum', 'leads': 'sum','buyer_id':'first'}).reset_index()
-            df_non_categories,df_spend_wo_leads = process_data_for_buyers(df_buyer, api_key, df_payment, df_appruv_range, df_fb,appruv_statuses,vykup_statuses,df_3,df_sobes_main)
+            df_non_categories,df_spend_wo_leads = process_data_for_buyers(df_buyer, api_key, df_payment, df_appruv_range, df_fb,appruv_statuses,vykup_statuses,df_sobes)
         else:
             df_buyer = df[df['buyer_id'].isna()].copy()
             df_fb = df_grouped[df_grouped['buyer_id'].isna()]
             df_fb = df_fb.groupby('offer_id').agg({'spend': 'sum', 'leads': 'sum','buyer_id':'first'}).reset_index()
 
-            df_non_categories,df_spend_wo_leads = process_data_for_buyers(df_buyer, api_key, df_payment, df_appruv_range, df_fb,appruv_statuses,vykup_statuses,df_3,df_sobes_main)
+            df_non_categories,df_spend_wo_leads = process_data_for_buyers(df_buyer, api_key, df_payment, df_appruv_range, df_fb,appruv_statuses,vykup_statuses,df_sobes)
 
         df_non_categories['buyer'] = buyer
 
@@ -365,5 +377,4 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
         'buyer': lambda x: ','.join(x.astype(str)),
     }).reset_index()
     # print(df_spend_wo_leads_total)
-    print(df_non_categories_total)
     return df_non_categories_total,df_summary_offers,df_spend_wo_leads_total
