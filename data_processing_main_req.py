@@ -85,24 +85,63 @@ def get_appruv_coefficient(approval_percent, df_appruv_range):
 
     return None
 
+def calculate_sum_air_upsell(df: pd.DataFrame) -> pd.DataFrame:
+    df['cc_price'] = df.apply(
+        lambda x: x['Загальна сума'] if pd.notna(x['call-center']) else None,
+        axis=1
+    )
+
+    grouped_orders = df.groupby('Номер замовлення').agg({
+        'offer_id(заказа)': 'first',
+        'cc_price': 'sum',
+        'sum_air': 'first'
+    }).reset_index()
+
+    df_result = grouped_orders.groupby('offer_id(заказа)').agg({
+        'cc_price': 'sum',
+        'sum_air': 'first'
+    }).reset_index()
+    df_result = df_result.fillna(0)
+
+    df_result['sum_air_upsell'] = (df_result['cc_price'] + df_result['sum_air']) *1000
+
+    return df_result
+
+def process_only_trash(df):
+  df_w_trash = df[df['Статус'].isin(['trash'])]
+  df_w_trash_count = df_w_trash.groupby('offer_id(заказа)').agg({'offer_id(заказа)': 'count'})
+  df_w_trash_count = df_w_trash_count.rename(columns={'offer_id(заказа)': 'Количество треш заказов'}).reset_index()
+  
+  return df_w_trash_count
+
+def process_percent_preorders(df):
+  df_w_percent = df[df['Статус'].isin(['preorder','perepodtverdit-poiavilsia-tovar',])]
+  df_w_percent = df_w_percent.drop_duplicates(subset='Номер замовлення')
+  df_w_percent_count = df_w_percent.groupby('offer_id(заказа)').agg({'offer_id(заказа)': 'count'})
+  df_w_percent_count = df_w_percent_count.rename(columns={'offer_id(заказа)': 'Количество предзаказов'}).reset_index()
+  return df_w_percent_count
 
 
 def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped,appruv_statuses,vykup_statuses,df_sobes):
     df_sobes_main, df_3 = process_sobes_data(df, vykup_statuses, df_sobes)
     df['offer_id_cut'] = df['offer_id(заказа)'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
     
-    
+    df_trash_only = process_only_trash(df)
+    df_preorders = process_percent_preorders(df) 
+    print(df_preorders)
     dataset = add_match_column(df, 'offer_id(товара)', 'offer_id_cut')
     #тута всі закази без дублів та тестів      
-    new = dataset[~dataset['Статус'].isin(['testy','duplicate'])]
+    new = dataset[~dataset['Статус'].isin(['testy'])]
     #тута табличка яка містить кількість лідів
     leads = count_unique_orders(new, 'Кількість лідів')
     #тута всі закази без треша, дублів, тестів. І по цьому рахуємо чисті ліди
-    new = new[~new['Статус'].isin(['trash'])]
+    new = new[~new['Статус'].isin(['trash','duplicate'])]
     #тута табличка яка містить кількість чистих лідів
     clear_leads = count_unique_orders(new, 'Кількість чистих лідів')
     #тута усі аппруви
     new = new[new['Статус'].isin(appruv_statuses)]
+
+
     #тута кількість аппрувів
     appruv = count_unique_orders(new, 'Кількість аппрувів')
     #refund
@@ -120,15 +159,19 @@ def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped
     vykup_temp = dataset[dataset['Статус'].isin(vykup_statuses)]
     vykup = count_unique_orders(vykup_temp, 'Выкуп')
 
+    # сума апсейлів + воздух
+    df_sum_upsells_air = calculate_sum_air_upsell(vykup_temp)
+
     #возврат
-    vozvrat_temp = dataset[dataset['Статус'].isin(['return','vozvrat-predvaritelno', 'plan-vozvrat'])]
+    vozvrat_temp = dataset[dataset['Статус'].isin(['return','plan-vozvrat'])]
     vozvrat = count_unique_orders(vozvrat_temp, 'Возврат')
 
     #доставляются
-    in_delivery_temp = new[~new['Статус'].isin(['preorder','send-to-assembling', 'assembling', 'client-confirmed', 'assembling-complete', 'pending', 'customer-wait', 'sborka',])]
+    in_delivery_temp = dataset[dataset['Статус'].isin(['send-to-delivery','delivering','redirect','urgent','dop-prozvon','call-emu','perenos-emu','otkaz-emu-predvaritelno','dop-prozvon-podtverzhden','given','pickup-ready','complete', 'payoff', 'dostavlen-predvaritelno','refund-req', 'refund-done', 'exchange', 'exchange-done','return','plan-vozvrat'])]
     in_delivery = count_unique_orders(in_delivery_temp, 'Доставляются')
 
     merged = merge_all_data(leads, clear_leads, appruv, refund, vykup, vozvrat, in_delivery, ref_sum)
+    # print(merged[merged['offer_id(заказа)'].str.contains('ss-il-0039')])
     def process_prodano_main(df):
         df_count_offer_id = df[df['Match']==1].groupby(['offer_id(заказа)']).agg({'Кількість товару': 'sum'}).reset_index().rename(columns={'Кількість товару':'Продано товаров шт. (OID)'})
         df_count_all = df[df['Назва товару'].notna() & (~df['Назва товару'].str.contains('оставка', na=False))].groupby(['offer_id(заказа)']).agg({'Кількість товару': 'sum'}).reset_index().rename(columns={'Кількість товару':'Продано товаров всего'})
@@ -172,6 +215,9 @@ def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped
     merged_final = merged_final.merge(df_3, left_on='offer_id_cut', right_on='offer_id(товара)', how='left', suffixes=('', '_df3'))
     merged_final = merged_final.merge(df_sobes_main, left_on='offer_id(заказа)', right_on='offer_id(товара)', how='left', suffixes=('', '_sobes'))
     merged_final = merged_final.merge(prodano_all, on='offer_id(заказа)', how='left')
+    merged_final = merged_final.merge(df_trash_only, on='offer_id(заказа)', how='left')
+    merged_final = merged_final.merge(df_preorders, on='offer_id(заказа)', how='left')
+    
     try:
         merged_final = merged_final.merge(df_dops_in_appruvs, on='offer_id(заказа)', how='left')
     except:
@@ -181,6 +227,8 @@ def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped
     merged_final = merged_final.merge(df_sum_all_w_delivery, on='offer_id(заказа)', how='left')
     merged_final = merged_final.merge(appruv_avg_sum, on='offer_id(заказа)', how='left')    
     merged_final = merged_final.merge(df_grouped,left_on='offer_id(заказа)', right_on='offer_id', how='left')
+    merged_final['% trash'] = merged_final['Количество треш заказов'] / merged_final['Кількість лідів'] 
+    merged_final['% preorders'] = merged_final['Количество предзаказов'] / merged_final['Кількість лідів'] 
 
     # spend для other 
     pattern = r'[a-zA-Z]{2}-[a-zA-Z]{2}-'
@@ -204,9 +252,11 @@ def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped
     )    
     merged_final['Лид до $'] = merged_final.apply(lambda row: get_lead(row, df_payment), axis=1)
 
-
-    merged_final['Лид до $'] = merged_final['Лид до $'].str.replace(',', '.')
-    merged_final['Коэф. Апрува'] = merged_final['Коэф. Апрува'].str.replace(',', '.')
+    try:
+        merged_final['Лид до $'] = merged_final['Лид до $'].str.replace(',', '.')
+        merged_final['Коэф. Апрува'] = merged_final['Коэф. Апрува'].str.replace(',', '.')
+    except:
+        pass
 
     merged_final['Лид до $'] = pd.to_numeric(merged_final['Лид до $'], errors='coerce')
     merged_final['Коэф. Апрува'] = pd.to_numeric(merged_final['Коэф. Апрува'], errors='coerce')
@@ -228,6 +278,7 @@ def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped
     names = names.groupby('offer_id(заказа)').agg({'Назва товару': 'first'})
     
     merged_final = merged_final.merge(names, how='left', on='offer_id(заказа)')
+    merged_final = merged_final.merge(df_sum_upsells_air, how='left', on='offer_id(заказа)')
     pattern = r'^[a-zA-Z]{2}-[a-zA-Z]{2}-\d{4}(-[a-zA-Z]{2})?$'
     df_categories = merged_final[~merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
     df_non_categories = merged_final[merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
@@ -274,6 +325,8 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     df_items_expanded['name'] = df_items_expanded['items'].apply(lambda x: x['offer']['name'] if isinstance(x, dict) and 'offer' in x and 'name' in x['offer'] else None)
     df_items_expanded['item_buyer_id'] = df_items_expanded.apply(lambda x: x['customFields']['buyer_id'] if 'buyer_id' in x['customFields'] else None, axis=1)
     df_items_expanded['item_offer_id'] = df_items_expanded.apply(lambda x: x['customFields']['offer_id'] if 'offer_id' in x['customFields'] else None, axis=1)
+    df_items_expanded['sum_air'] = df_items_expanded.apply(lambda x: x['customFields']['sum_air'] if 'sum_air' in x['customFields'] else None, axis=1)
+
     df_items_expanded = df_items_expanded.rename(columns={
         'number': 'Номер замовлення',
         'status': 'Статус',
@@ -284,14 +337,15 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
         'price': 'Ціна товару',
         'item_offer_id': 'offer_id(заказа)',
         'item_buyer_id': 'buyer_id',
-        'comment': 'call-center'
+        'comment': 'call-center',
+        'sum_air': 'sum_air'
     })
     df_items_expanded.drop(['customFields', 'items'], axis = 1)
     df = df_items_expanded
     df['offer_id(товара)'] = df['Product_id'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
     df['Загальна сума'] = df['Ціна товару'] * df['Кількість товару']
     
-    desired_column_order = ['Номер замовлення', 'Статус', 'offer_id(товара)', 'Product_id', 'Назва товару', 'Кількість товару', 'Ціна товару', 'Загальна сума', 'offer_id(заказа)', 'buyer_id','call-center']
+    desired_column_order = ['Номер замовлення', 'Статус', 'offer_id(товара)', 'Product_id', 'Назва товару', 'Кількість товару', 'Ціна товару', 'Загальна сума', 'offer_id(заказа)', 'buyer_id','call-center','sum_air']
     df = df.reindex(columns=desired_column_order)
     
     #додаємо other
@@ -316,7 +370,6 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     vykup_statuses = ['complete', 'payoff', 'dostavlen-predvaritelno','refund-req', 'refund-done', 'exchange', 'exchange-done']
     
     appruv_statuses = get_status_groups_cached(api_key)
-
     #себеси
     df_sobes = get_sobes_data(api_key)
     
@@ -324,6 +377,7 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     buyers = df['buyer_id'].unique().tolist()
     df_non_categories_total = pd.DataFrame() 
     df_spend_wo_leads_total = pd.DataFrame()
+
     for buyer in buyers:
         if len(str(buyer)) == 2:
             df_buyer = df[df['buyer_id'] == buyer].copy()
@@ -375,6 +429,9 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
         'quantity': 'sum',  # Сума кількості
         'category': 'first',  # Перше значення для кожної групи
         'buyer': lambda x: ','.join(x.astype(str)),
+        'sum_air_upsell': 'sum',
+        '% trash': 'mean',
+        '% preorders': 'mean'
     }).reset_index()
     # print(df_spend_wo_leads_total)
     return df_non_categories_total,df_summary_offers,df_spend_wo_leads_total

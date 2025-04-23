@@ -21,14 +21,8 @@ def get_status_groups(api_key):
     df_to = df[df['statusGroup'].isin(['approve','assembling','delivery','complete','refund'])]
     
     appruv_statuses = [
-    'urgent',
-    'dop-prozvon',
-    'call-emu',
-    'perepodtverdit-net-tovara', 'perepodtverdit-net-xml-koda',
     'return',
-    'vozvrat-predvaritelno',
-    'plan-vozvrat',
-    'perepodtverdit-net-xml-koda','perepodtverdit-net-tovara']
+    'plan-vozvrat',]
 
     for status_list in df_to['statuses']:
         appruv_statuses.extend(status_list.split(', '))

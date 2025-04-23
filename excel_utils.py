@@ -1,7 +1,7 @@
 import openpyxl
 
 def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo_leads):
-    file_path = 'data/template-p&l-4.0.xlsx'  
+    file_path = 'data/template-p&l-5.0.xlsx'  
     wb1 = openpyxl.load_workbook(file_path)
     sh_paste = wb1['Лист1']
     sh_catalog = wb1['Catalog']
@@ -13,25 +13,28 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo
         'offer_id(заказа)': 'D',
         'Кількість лідів': 'E',
         'Кількість чистих лідів': 'F',
+        '% trash': 'G',
         'Кількість аппрувів': 'H',
-        'Доставляются': 'K',
-        'Возврат': 'M',
-        'Выкуп': 'N',
-        'Refund': 'P',
-        'Продано товаров шт. (OID)': 'R',
-        'quantity': 'S',
-        'Себес (OID) из СРМ': 'T',
-        'Продано товаров всего': 'U',
-        '% заказов с допами в апрувах': 'W',
+        '% preorders': 'K',
+        'Доставляются': 'L',
+        'Возврат': 'N',
+        'Выкуп': 'O',
+        'Refund': 'Q',
+        'Продано товаров шт. (OID)': 'S',
+        'quantity': 'T',
+        'Себес (OID) из СРМ': 'U',
+        'Продано товаров всего': 'V',
+        '% заказов с допами в апрувах': 'X',
+        'sum_air_upsell': 'Y',
         # 'Выручка по OID без доставки (от этого значения 5% баеру)': 'V',
-        'Выручка по всем товарам без доставки (все товары)_y': 'X',
-        'Итоговая выручка с дост. в СУМ': 'Z',
-        'Средний чек апрува без доставки': 'AB',
+        'Выручка по всем товарам без доставки (все товары)_y': 'Z',
+        'Итоговая выручка с дост. в СУМ': 'AB',
+        'Средний чек апрува без доставки': 'AD',
         # 'Коэф. Апрува': 'AA',
         # 'Лид до $': 'AB',
-        'spend': 'AE',
-        'Refund SUM': 'AN',        
-        'Себес товаров': 'AP',                                                                                 
+        'spend': 'AG',
+        'Refund SUM': 'AP',        
+        'Себес товаров': 'AR',                                                                                 
     }
 
     column_mapping_for_all = {
@@ -41,25 +44,28 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo
         'offer_id_cut': 'D',
         'Кількість лідів': 'E',
         'Кількість чистих лідів': 'F',
+        '% trash': 'G',
         'Кількість аппрувів': 'H',
-        'Доставляются': 'K',
-        'Возврат': 'M',
-        'Выкуп': 'N',
-        'Refund': 'P',
-        'Продано товаров шт. (OID)': 'R',
-        'quantity': 'S',
-        'Себес (OID) из СРМ': 'T',
-        'Продано товаров всего': 'U',
-        '% заказов с допами в апрувах': 'W',
+        '% preorders': 'K',
+        'Доставляются': 'L',
+        'Возврат': 'N',
+        'Выкуп': 'O',
+        'Refund': 'Q',
+        'Продано товаров шт. (OID)': 'S',
+        'quantity': 'T',
+        'Себес (OID) из СРМ': 'U',
+        'Продано товаров всего': 'V',
+        '% заказов с допами в апрувах': 'X',
+        'sum_air_upsell': 'Y',
         # 'Выручка по OID без доставки (от этого значения 5% баеру)': 'V',
-        'Выручка по всем товарам без доставки (все товары)_y': 'X',
-        'Итоговая выручка с дост. в СУМ': 'Z',
-        'Средний чек апрува без доставки': 'AB',
+        'Выручка по всем товарам без доставки (все товары)_y': 'Z',
+        'Итоговая выручка с дост. в СУМ': 'AB',
+        'Средний чек апрува без доставки': 'AD',
         # 'Коэф. Апрува': 'AA',
         # 'Лид до $': 'AB',
-        'spend': 'AE',
-        'Refund SUM': 'AN',        
-        'Себес товаров': 'AP',                                                                                 
+        'spend': 'AG',
+        'Refund SUM': 'AP',        
+        'Себес товаров': 'AR',                                                                                 
     }
 
     def copy_formatting(src_sheet, dest_sheet):
@@ -77,10 +83,10 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo
                     cell.value = value
 
     map_cash = {
-        'buyer_id': 'BI',
-        'offer_id': 'BJ',
-        'spend': 'BK',
-        'leads': 'BL'
+        'buyer_id': 'BK',
+        'offer_id': 'BL',
+        'spend': 'BM',
+        'leads': 'BN'
     }
 
     copy_formatting(sh_paste, sh_paste)
