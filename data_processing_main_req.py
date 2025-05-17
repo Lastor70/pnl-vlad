@@ -128,7 +128,7 @@ def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped
     
     df_trash_only = process_only_trash(df)
     df_preorders = process_percent_preorders(df) 
-    print(df_preorders)
+    # print(df_preorders)
     dataset = add_match_column(df, 'offer_id(товара)', 'offer_id_cut')
     #тута всі закази без дублів та тестів      
     new = dataset[~dataset['Статус'].isin(['testy'])]
@@ -279,9 +279,11 @@ def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped
     
     merged_final = merged_final.merge(names, how='left', on='offer_id(заказа)')
     merged_final = merged_final.merge(df_sum_upsells_air, how='left', on='offer_id(заказа)')
+    # print(merged_final[merged_final['offer_id(заказа)'].str.contains('$')])
     pattern = r'^[a-zA-Z]{2}-[a-zA-Z]{2}-\d{4}(-[a-zA-Z]{2})?$'
-    df_categories = merged_final[~merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
-    df_non_categories = merged_final[merged_final['offer_id(заказа)'].str.contains(pattern, regex=True, na=False)]
+    pattern_or_dollar = rf'({pattern})|\$$'
+    df_categories = merged_final[~merged_final['offer_id(заказа)'].str.contains(pattern_or_dollar, regex=True, na=False)]
+    df_non_categories = merged_final[merged_final['offer_id(заказа)'].str.contains(pattern_or_dollar, regex=True, na=False)]
 
     
     # df_non_categories = merged_final[
