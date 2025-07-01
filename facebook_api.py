@@ -146,7 +146,8 @@ def fetch_facebook_data(df_tokens, start_date_str, end_date_str):
         campaigns_data = get_all_campaigns_data(ad_accounts_df)
         campaigns_data['offer_id'] = campaigns_data['Campaign Name'].apply(lambda x: x.split('|')[2].strip() if len(x.split('|')) > 2 else None)
         campaigns_data['buyer_id'] = campaigns_data['Campaign Name'].apply(lambda x: x.split('|')[1].strip() if len(x.split('|')) > 2 else None)
-        
+        campaigns_data['order_method'] = campaigns_data['Campaign Name'].apply(lambda x: x.split('|')[0].strip() if len(x.split('|')) > 2 else None)
+
         campaigns_data['offer_id'] = campaigns_data['offer_id'].fillna("other camp")
         df_campaign_data = asyncio.run(get_campaign_data_for_filtered_df(campaigns_data, start_date_str, end_date_str))
         # df_campaign_data.to_excel('fb_accs.xlsx')
@@ -159,11 +160,13 @@ def group_data_by_offer_id(df):
         df['spend'] = pd.to_numeric(df['spend'], errors='coerce')
         df.drop_duplicates(['Campaign ID'],inplace=True)
         # print(df[df['offer_id'] == 'ss-ss-0167'])
-        df_grouped = df#.groupby('offer_id').agg({'spend': 'sum', 'leads': 'sum','buyer_id':'first'}).reset_index()
+        df_grouped = df.groupby(['offer_id', 'buyer_id', 'order_method']).agg({
+            'spend': 'sum',
+            'leads': 'sum'
+        }).reset_index()
         df_grouped['offer_id'] = df_grouped['offer_id'].str.replace('\ufeff', '', regex=False)
-        df_grouped = df_grouped[['offer_id','buyer_id','spend','leads']]
+        df_grouped = df_grouped[['offer_id', 'order_method','buyer_id','spend','leads']]
         # print(df_grouped[df_grouped['offer_id'].str.contains('tv-mb-0003')]['offer_id'].iloc[0])
-        
         return df_grouped
     except Exception as e:
         print(f"Проблема з групуванням даних: {e}")

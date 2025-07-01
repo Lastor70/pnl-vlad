@@ -47,7 +47,7 @@ if st.button("Выгрузить и обработать данные"):
     df_grouped = cached_fetch_facebook_data(df_tokens, start_date_str, end_date_str)
     st.session_state['df_grouped'] = df_grouped
     progress_bar.progress(15)
-
+    
     # Отримання замовлень з CRM
     request_type = 'main'
     df_orders = fetch_orders_data(api_key, start_date_str, end_date_str, request_type)

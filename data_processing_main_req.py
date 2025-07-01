@@ -306,7 +306,7 @@ def process_data_for_buyers(df, api_key, df_payment, df_appruv_range, df_grouped
 def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     """Обробляє отримані замовлення та форматує DataFrame."""
     
-    mask = ['number', 'status', 'createdAt', 'customFields', 'items']
+    mask = ['number', 'orderMethod', 'status', 'createdAt', 'customFields', 'items']
     df2 = df[mask]
 
     def get_item_data(items, key):
@@ -332,6 +332,7 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     df_items_expanded = df_items_expanded.rename(columns={
         'number': 'Номер замовлення',
         'status': 'Статус',
+        'orderMethod': 'order_method',
         'createdAt': 'Дата создания',
         'externalId': 'Product_id',
         'name': 'Назва товару',
@@ -347,7 +348,7 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     df['offer_id(товара)'] = df['Product_id'].apply(lambda x: '-'.join(x.split('-')[:3]) if isinstance(x, str) else None)
     df['Загальна сума'] = df['Ціна товару'] * df['Кількість товару']
     
-    desired_column_order = ['Номер замовлення', 'Статус', 'offer_id(товара)', 'Product_id', 'Назва товару', 'Кількість товару', 'Ціна товару', 'Загальна сума', 'offer_id(заказа)', 'buyer_id','call-center','sum_air']
+    desired_column_order = ['Номер замовлення', 'Статус', 'offer_id(товара)', 'Product_id', 'Назва товару', 'Кількість товару', 'Ціна товару', 'Загальна сума', 'offer_id(заказа)', 'buyer_id','call-center','sum_air', 'order_method']
     df = df.reindex(columns=desired_column_order)
     
     #додаємо other
@@ -375,30 +376,82 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     #себеси
     df_sobes = get_sobes_data(api_key)
     
-    #тут окремо по кожному баєру робимо
+
+    if 'order_method' in df.columns:
+        df['order_method'] = df['order_method'].apply(
+            lambda x: 'BUYO' if x == 'shopping-cart' else 'landing-page'
+    )
+    # print(df_grouped)
+    # df_grouped.to_excel('as.xlsx')
     buyers = df['buyer_id'].unique().tolist()
     df_non_categories_total = pd.DataFrame() 
     df_spend_wo_leads_total = pd.DataFrame()
 
+    #тут окремо по кожному баєру робимо
     for buyer in buyers:
         if len(str(buyer)) == 2:
-            df_buyer = df[df['buyer_id'] == buyer].copy()
-            df_fb = df_grouped[df_grouped['buyer_id'] == buyer]
-            df_fb = df_fb.groupby('offer_id').agg({'spend': 'sum', 'leads': 'sum','buyer_id':'first'}).reset_index()
-            df_non_categories,df_spend_wo_leads = process_data_for_buyers(df_buyer, api_key, df_payment, df_appruv_range, df_fb,appruv_statuses,vykup_statuses,df_sobes)
+            df_buyer_all = df[df['buyer_id'] == buyer].copy()
+            df_fb_buyer = df_grouped[df_grouped['buyer_id'] == buyer]
         else:
-            df_buyer = df[df['buyer_id'].isna()].copy()
-            df_fb = df_grouped[df_grouped['buyer_id'].isna()]
-            df_fb = df_fb.groupby('offer_id').agg({'spend': 'sum', 'leads': 'sum','buyer_id':'first'}).reset_index()
+            df_buyer_all = df[df['buyer_id'].isna()].copy()
+            df_fb_buyer = df_grouped[df_grouped['buyer_id'].isna()]
 
-            df_non_categories,df_spend_wo_leads = process_data_for_buyers(df_buyer, api_key, df_payment, df_appruv_range, df_fb,appruv_statuses,vykup_statuses,df_sobes)
-
-        df_non_categories['buyer'] = buyer
-
-        df_non_categories_total = pd.concat([df_non_categories_total,df_non_categories])
-        df_spend_wo_leads_total = pd.concat([df_spend_wo_leads_total,df_spend_wo_leads])
+        
+        # Проходимось по кожному унікальному order_method у df_buyer_all
+        order_methods = df_buyer_all['order_method'].unique()
        
-    df_summary_offers = df_non_categories_total.groupby('offer_id_cut').agg({
+        for order_method in order_methods:
+            df_buyer = df_buyer_all[df_buyer_all['order_method'] == order_method].copy()
+
+            # Вибір Facebook-даних в залежності від order_method
+            if order_method == 'BUYO':
+                df_fb = df_fb_buyer[df_fb_buyer['order_method'] == 'BUYO']
+            else:
+                df_fb = df_fb_buyer[df_fb_buyer['order_method'] != 'BUYO']
+
+            # # Групування
+            # df_fb = df_fb.groupby('offer_id').agg({
+            #     'spend': 'sum', 'leads': 'sum', 'buyer_id': 'first'
+            # }).reset_index()
+
+            
+
+            # Обробка
+            df_non_categories, df_spend_wo_leads = process_data_for_buyers(
+                df_buyer, api_key, df_payment, df_appruv_range, df_fb,
+                appruv_statuses, vykup_statuses, df_sobes
+            )
+
+            df_non_categories['buyer'] = buyer
+
+            if order_method == 'BUYO':
+                df_non_categories['order_method'] = 'BUYO'
+            else:
+                df_non_categories['order_method'] = 'landing page'
+
+            df_non_categories_total = pd.concat([df_non_categories_total, df_non_categories])
+            df_spend_wo_leads_total = pd.concat([df_spend_wo_leads_total, df_spend_wo_leads])
+
+    # видаляю ті, що є
+    df_spend_wo_leads_total = df_spend_wo_leads_total[
+        ~df_spend_wo_leads_total['offer_id'].isin(df_non_categories_total['offer_id'])
+    ].drop_duplicates()
+
+    # обрізаємо по байо оффер ід
+    mask = df_non_categories_total['order_method'] == 'BUYO'
+    df_non_categories_total.loc[mask, 'offer_id(заказа)'] = (
+        df_non_categories_total.loc[mask, 'offer_id(заказа)']
+        .str.split('-')
+        .str[:3]
+        .str.join('-')
+    )
+
+    # ділимо спенд для інших на 2
+    mask = df_non_categories_total['offer_id(заказа)'] == 'other'
+    df_non_categories_total.loc[mask, 'spend'] = df_non_categories_total.loc[mask, 'spend'] / 2
+
+
+    df_summary_offers = df_non_categories_total.groupby(['offer_id_cut','order_method']).agg({
         'Кількість лідів': 'sum',  
         'Кількість чистих лідів': 'sum',
         'Кількість аппрувів': 'sum',
@@ -431,9 +484,12 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
         'quantity': 'sum',  # Сума кількості
         'category': 'first',  # Перше значення для кожної групи
         'buyer': lambda x: ','.join(x.astype(str)),
+        # 'order_method': lambda x: ','.join(x.astype(str)),
         'sum_air_upsell': 'sum',
         '% trash': 'mean',
         '% preorders': 'mean'
     }).reset_index()
+
+
     # print(df_spend_wo_leads_total)
     return df_non_categories_total,df_summary_offers,df_spend_wo_leads_total
