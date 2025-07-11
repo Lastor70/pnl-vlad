@@ -1,6 +1,6 @@
 import openpyxl
 
-def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo_leads):
+def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo_leads,buyers):
     file_path = 'data/template-p&l-5.0.xlsx'  
     wb1 = openpyxl.load_workbook(file_path)
     sh_paste = wb1['Лист1']
@@ -85,11 +85,16 @@ def save_data_to_excel(merged_ss, start_date, end_date,df_categories,df_spend_wo
                     cell.value = value
 
     map_cash = {
-        'buyer_id': 'BL',
-        'offer_id': 'BM',
-        'spend': 'BN',
-        'leads': 'BO'
+        'buyer_id': 'BM',
+        'offer_id': 'BN',
+        'spend': 'BO',
+        'leads': 'BP'
     }
+
+    
+    start_col = openpyxl.utils.column_index_from_string('BG')
+    for i, buyer in enumerate(buyers):
+        sh_paste.cell(row=7 + i, column=start_col, value=buyer)
 
     copy_formatting(sh_paste, sh_paste)
     copy_formatting(sh_catalog, sh_catalog)

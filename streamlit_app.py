@@ -9,6 +9,29 @@ st.set_page_config(page_title="Рассчет PNL", page_icon="📈")
 st.title("Рассчет PNL")
 st.header('Фильтр по датам')
 
+
+def check_password():
+    """Показує поле введення пароля, поки не введено правильний. Зберігає статус у session_state."""
+    def password_entered():
+        if st.session_state["password"] == st.secrets["auth_password"]:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # очищення для безпеки
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        st.text_input("🔒 Введіть пароль", type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.text_input("🔒 Введіть пароль", type="password", on_change=password_entered, key="password")
+        st.error("❌ Невірний пароль")
+        return False
+    else:
+        return True
+
+if not check_password():
+    st.stop()
+
 api_key = st.secrets["api_key"]
 google_sheets_creds = st.secrets["gcp_service_account"]
 
@@ -56,13 +79,14 @@ if st.button("Выгрузить и обработать данные"):
     
 
     # Обробка замовлень
-    processed_orders,df_categories,df_spend_wo_leads = process_orders_data(df_orders, api_key, df_payment, df_appruv_range, df_grouped)
+    processed_orders,df_categories,df_spend_wo_leads,buyers = process_orders_data(df_orders, api_key, df_payment, df_appruv_range, df_grouped)
     progress_bar.progress(95)
     
     st.session_state.update({
         'processed_orders': processed_orders,
         'df_categories': df_categories,
         'df_spend_wo_leads': df_spend_wo_leads,
+        'buyers': buyers,
         # 'df_sobes_main': df_sobes_main,
     #     'spend_wo_leads': spend_wo_leads,
     #     'df_orders': df_orders,
@@ -88,6 +112,7 @@ if st.button("Выгрузить и обработать данные"):
         end_date_str,
         df_categories,
         df_spend_wo_leads,
+        buyers
     )
     
     with open(filename, "rb") as f:

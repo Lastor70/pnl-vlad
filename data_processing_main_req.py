@@ -403,7 +403,7 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
         for order_method in order_methods:
             df_buyer = df_buyer_all[df_buyer_all['order_method'] == order_method].copy()
 
-            # Вибір Facebook-даних в залежності від order_method
+            
             if order_method == 'BUYO':
                 df_fb = df_fb_buyer[df_fb_buyer['order_method'] == 'BUYO']
             else:
@@ -462,27 +462,27 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
         'Refund SUM': 'sum',
         'Продано товаров шт. (OID)': 'sum',
         'offer_id(товара)': 'first',  
-        'Себес (OID) из СРМ': 'mean',  # Середнє значення для кожної групи
-        'offer_id(товара)_sobes': 'first',  # Перше значення для кожної групи
+        'Себес (OID) из СРМ': 'mean',  
+        'offer_id(товара)_sobes': 'first',  
         'Выручка по всем товарам без доставки (все товары)_x': 'sum',
         'Себес товаров': 'sum',
         'Продано товаров всего': 'sum',
         'Заказов с допами в апрувах': 'sum',
-        '% заказов с допами в апрувах': 'mean',  # Середнє значення
+        '% заказов с допами в апрувах': 'mean', 
         'Выручка по OID без доставки (от этого значения 5% баеру)': 'sum',
         'Выручка по всем товарам без доставки (все товары)_y': 'sum',
         'Итоговая выручка с дост. в СУМ': 'sum',
         'Средний чек апрува без доставки': 'mean',
-        'offer_id': 'first',  # Перше значення для кожної групи
+        'offer_id': 'first', 
         'spend': 'sum',
         'leads': 'sum',
-        '% Аппрува': 'mean',  # Середнє значення
-        'Коэф. Апрува': 'mean',  # Середнє значення
-        'Лид до $': 'mean',  # Середнє значення
-        'Назва товару': 'first',  # Перше значення для кожної групи
-        'article': 'first',  # Перше значення для кожної групи
-        'quantity': 'sum',  # Сума кількості
-        'category': 'first',  # Перше значення для кожної групи
+        '% Аппрува': 'mean',  
+        'Коэф. Апрува': 'mean', 
+        'Лид до $': 'mean', 
+        'Назва товару': 'first',  
+        'article': 'first', 
+        'quantity': 'sum',  
+        'category': 'first',  
         'buyer': lambda x: ','.join(x.astype(str)),
         # 'order_method': lambda x: ','.join(x.astype(str)),
         'sum_air_upsell': 'sum',
@@ -491,5 +491,7 @@ def process_orders_data(df, api_key, df_payment, df_appruv_range, df_grouped):
     }).reset_index()
 
 
-    # print(df_spend_wo_leads_total)
-    return df_non_categories_total,df_summary_offers,df_spend_wo_leads_total
+    print(df_spend_wo_leads_total)
+    buyers = [b for b in buyers if b is not None]
+    print(buyers)
+    return df_non_categories_total,df_summary_offers,df_spend_wo_leads_total,buyers
